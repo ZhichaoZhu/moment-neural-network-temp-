@@ -7,13 +7,13 @@ class MnistTrainFuncs(utils.training_tools.TrainProcessCollections):
         # this function can fix all random seed (numpy, pytorch) for better reproducibility
         return super().set_random_seed(seed)
     
-    def make_model(self, model_args: dict):
+    def make_model(self, args):
         # this func will generate model, rewrite this func for your own model.
-        return super().make_model(model_args)
+        return super().make_model(args)
     
-    def prepare_dataloader(self, args, data_dir='./data/'):
+    def prepare_dataloader(self, args):
         # rewrite this func for your dataloader, by default it will return MNIST loader
-        return super().prepare_dataloader(args, data_dir)
+        return super().prepare_dataloader(args)
     
     def prepare_criterion(self, args):
         # rewrite this func for your criterion, alternatively to specify config for provided criterion. 
