@@ -1,0 +1,52 @@
+MODEL:
+  structure:
+    - 784
+    - 1000
+  predict_bias: False
+
+CRITERION:
+  args:
+    reduction: mean
+  name: CrossEntropyOnMean
+  source: mnn_core
+
+
+OPTIMIZER:
+  name: AdamW
+  args:
+    lr: 0.001
+    weight_decay: 0.01
+
+
+DATAAUG_TRAIN:
+  aug_order:
+   - RandomCrop
+   - ToTensor
+    
+  
+  CenterCrop:
+   size: 20
+
+  RandomCrop:
+   size: 28
+   padding: 2
+
+DATAAUG_VAL:
+  aug_order:
+   - ToTensor
+  
+  CenterCrop:
+   size: 20
+
+workers: 2
+lr: 0.001
+epochs: 30
+bs: 50
+pin_mem: True
+world_size: 1
+dataset: mnist
+dataset_type: classic
+input_prepare: ~
+save_epoch_state: False
+scale_factor: 1.
+background_noise: 0.0

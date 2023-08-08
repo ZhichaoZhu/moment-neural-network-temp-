@@ -155,3 +155,4 @@ data/
 checkpoint/
 config/
 .idea/
+*.txt

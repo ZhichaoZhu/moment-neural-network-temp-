@@ -2,10 +2,11 @@
 import torch
 import numpy as np
 import analysis
-import mnn_core
+
 from torch import Tensor
-import utils
+from .. import utils
 from . import base, mnn2snn
+from .. import mnn_core
 
 class MnnSnnValidate:
     def __init__(self, args, running_time=20, dt=1e-2, num_trials=100, monitor_size=None, 

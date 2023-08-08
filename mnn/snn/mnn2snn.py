@@ -6,10 +6,11 @@ import torch
 from torch import Tensor
 from torch.nn import functional as F
 from collections import defaultdict
-import mnn_core.nn.functional as mnn_funcs
-import mnn_core
+from .. import mnn_core
+from ..mnn_core.nn import functional as mnn_funcs
 
-import models
+
+from .. import models
 from . import base
 from .base import SpikeMonitor, GeneralCurrentGenerator, LIFNeurons
 
@@ -386,81 +387,6 @@ def convert_parameters(model: Union[models.MnnMlp, models.SnnMlp], debug=False):
                 print('{} is None!'.format(key))
     return snn_params
 
-
-class VggLikeNoRhoTrans(models.VGGLikeNoRho, MnnBaseTrans):   
-    def convert_modules(self,  dt=1e-1, batch_size=None, neuron_type: base.BaseNeuronType = LIFNeurons, **kwargs):
-        feature_extractor = torch.nn.ModuleList()
-        test_data = torch.ones(self.input_shape).unsqueeze(0)
-        for m in self.feature_extractor:
-            if isinstance(m, mnn_core.nn.Conv2dNoRho):
-                m = transfer_conv2d_module(m, dt=dt)
-            elif isinstance(m, mnn_core.nn.CustomBatchNormNoRho2d):
-                m = transfer_custom_bn2d_module(m, dt=dt, **kwargs)
-            elif isinstance(m, mnn_core.nn.AveragePool2d):
-                m = transfer_avg_pool2d_module(m)
-            if isinstance(m, mnn_core.nn.OriginMnnActivation):
-                num_neuron = base.sample_size(test_data.size()[1:], batch_size)
-                m = neuron_type(num_neuron, dt=dt, **kwargs)
-            else:
-                with torch.inference_mode():
-                    m.eval()
-                    test_data = m(test_data)
-            feature_extractor.append(m)
-        self.feature_extractor = torch.nn.Sequential(*feature_extractor)
-        
-        if self.classifier_cfg is not None:
-            mlp = torch.nn.ModuleList()
-            for i in range(len(self.classifier_cfg['structure']) - 1):
-                out_features = self.classifier_cfg['structure'][i + 1]
-                module = self.classifier.mlp[3 * i]
-                module = transform_ln_module(module, dt, batch_size, **kwargs)
-                mlp.append(module)
-
-                module = self.mlp[3 * i + 1]
-                module = transfer_custom_bn_module(module, dt, batch_size, **kwargs)
-                mlp.append(module)
-                num = base.sample_size(out_features, batch_size)
-                module = neuron_type(num, dt=dt, **kwargs)
-                mlp.append(module)
-            self.classifier.mlp = torch.nn.Sequential(*mlp)
-    
-    def add_monitors(self, dt=1e-1, batch_size=None, monitor_size=None, dtype=torch.float, **kwargs):
-        if monitor_size is None:
-            if isinstance(self.classifier, models.MnnMlpNoRho):
-                num = self.classifier_cfg['structure'][-1]
-            else:
-                num = self.classifier.in_features
-            num = base.sample_size(num, batch_size)
-        else:
-            num = base.sample_size(monitor_size, batch_size)
-        monitor = SpikeMonitor(num, dt=dt, dtype=dtype, **kwargs)
-        setattr(self, 'monitor', monitor)
-        setattr(self, 'monitor_alias', ['monitor'])
-
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.feature_extractor(x)
-        x = torch.flatten(x, start_dim=1)
-        if isinstance(self.classifier, models.MnnMlpNoRho):
-            x = self.classifier.mlp(x)
-        x = self.monitor(x)
-        return x
-
-    @torch.inference_mode()
-    def make_predict(self, *args, **kwargs):
-        mean, cov = self.moment_statistic(*args, **kwargs)
-        cov = torch.diagonal(cov, dim1=-2, dim2=-1)
-        if isinstance(self.classifier, models.MnnMlpNoRho):
-            device = self.classifier.predict.weight.device
-            mean = mean.to(device)
-            cov = cov.to(device)
-            predicts = self.classifier.predict(mean, cov)
-        else:
-            device = self.classifier.weight.device
-            mean = mean.to(device)
-            cov = cov.to(device)
-            predicts = self.classifier(mean, cov)
-        return predicts
-
 class MnnMlpMeanOnlyTrans(models.MnnMlpMeanOnly, MnnBaseTrans):
  
     def convert_modules(self,  dt=1e-1, batch_size=None, neuron_type: base.BaseNeuronType = LIFNeurons, **kwargs):
@@ -494,7 +420,7 @@ class MnnMlpMeanOnlyTrans(models.MnnMlpMeanOnly, MnnBaseTrans):
         mean = mean.to(device)
         return self.predict(mean)
     
-class VggLikeMeanOnlyTrans(models.VGGLikeMeanOnly, MnnBaseTrans):
+
     def convert_modules(self,  dt=1e-1, batch_size=None, neuron_type: base.BaseNeuronType = LIFNeurons, **kwargs):
         feature_extractor = torch.nn.ModuleList()
         test_data = torch.ones(self.input_shape).unsqueeze(0)
