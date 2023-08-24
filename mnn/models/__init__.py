@@ -1,1 +1,1 @@
-from .mlp import MnnMlp, SnnMlp, AnnMlp, MnnMlpMeanOnly
+from .mlp import MnnMlp, SnnMlp, AnnMlp
