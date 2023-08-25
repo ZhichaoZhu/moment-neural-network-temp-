@@ -229,9 +229,20 @@ def prepare_args(parser):
         args.use_cuda = False
     return args
 
-def model_generator(checkpoint_path, save_name, to_cuda=False, resume_model=True, local_rank=0, resume_best=False):
-    config = read_yaml_config('{}{}_config.yaml'.format(checkpoint_path, save_name))
-    model = make_model(config['MODEL'])
+class TempArgs:
+    def __init__(self) -> None:
+        pass
+    
+def model_generator(checkpoint_path, save_name, to_cuda=False, resume_model=True, local_rank=0, resume_best=False, make_func=None):
+    if make_func is None:
+        config = read_yaml_config('{}{}_config.yaml'.format(checkpoint_path, save_name))
+        model = make_model(config['MODEL'])
+    else:
+        args = TempArgs()
+        args.config = '{}{}_config.yaml'.format(checkpoint_path, save_name)
+        set_config2args(args)
+        model = make_func.make_model(args)
+        
     if resume_model:
         if resume_best:
             ckpt = torch.load('{}{}_best_model.pth'.format(checkpoint_path, save_name), map_location='cpu')

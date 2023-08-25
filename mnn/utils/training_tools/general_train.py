@@ -270,7 +270,7 @@ class TrainProcessCollections:
             if isinstance(images, tuple):
                 images = images[0]
 
-            if getattr(args, 'task_type', 'classify') == 'classify':
+            if getattr(args, 'task_type', 'classification') == 'classification':
                 acc1, = self.score_function(output, target, topk=(1, ), pred_prob=pred)
                 if args.distributed:
                     loss, acc1 = self.reduce_distributed_info(args, loss, acc1)
@@ -314,7 +314,7 @@ class TrainProcessCollections:
                     images = images[0]
                     
                 # measure accuracy and record loss
-                if getattr(args, 'task_type', 'classify') == 'classify':
+                if getattr(args, 'task_type', 'classification') == 'classification':
                     acc1, = self.score_function(output, target, topk=(1, ), pred_prob=pred)
                     if args.distributed:
                         loss, acc1 = self.reduce_distributed_info(args, loss, acc1)
@@ -329,7 +329,7 @@ class TrainProcessCollections:
             if args.local_rank == 0 and getattr(args, 'log_path', None) is not None:
                 info = 'Validation result: ' + progress.display_summary() + '\n'
                 func.RecordMethods.writing_log(args.log_path, info)
-        if getattr(args, 'task_type', 'classify') == 'classify':
+        if getattr(args, 'task_type', 'classification') == 'classification':
             return top1.avg
         else:
             return - losses.avg
