@@ -156,3 +156,35 @@ class AnnMlp(torch.nn.Module):
         for module in self.mlp:
             x = module(x)
         return self.predict(x)
+    
+class MnnMlpMeanOnly(torch.nn.Module):
+    def __init__(self, structure, num_class: int = 10, predict_bias: bool = True, momentum: float = 0.9, eps: float = 0.00001, ln_bias=False,  V_th: float = 20., L: float = 0.05, T_ref: float = 5.0, bn_init=True)  -> None:
+        super().__init__()
+        self.structure = structure
+        self.num_class = num_class
+        self.predict_bias = predict_bias
+        self.momentum = momentum
+        self.eps = eps
+        self.ln_bias = ln_bias
+        self.V_th = V_th
+        self.L = L
+        self.T_ref = T_ref
+        mlp = []
+        for i in range(len(structure) - 1):
+            mlp += [
+                torch.nn.Linear(structure[i], structure[i+1], bias=ln_bias),
+                torch.nn.BatchNorm1d(structure[i+1], eps=eps, momentum=momentum),
+                mnn_core.nn.ConstantCurrentActivation(V_th=V_th, L=L, T_ref=T_ref)
+            ]
+        self.mlp = torch.nn.Sequential(*mlp)
+        self.predict = torch.nn.Linear(structure[-1], num_class, bias=predict_bias)
+        if bn_init:
+            for m in self.modules():
+                if isinstance(m, torch.nn.BatchNorm1d):
+                    m.weight.data.fill_(2.5)
+                    m.bias.data.fill_(2.5)
+    
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.mlp(x)
+        x = self.predict(x)
+        return x

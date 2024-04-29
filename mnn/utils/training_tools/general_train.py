@@ -166,7 +166,13 @@ class TrainProcessCollections:
         
     def data2device(self, data, target, args):
         if args.use_cuda:
-            data = data.cuda(args.local_rank, non_blocking=True)
+            if isinstance(data, tuple):
+                data, cov = data
+                data = data.cuda(args.local_rank, non_blocking=True)
+                cov = cov.cuda(args.local_rank, non_blocking=True)
+                data = (data, cov)
+            else:
+                data = data.cuda(args.local_rank, non_blocking=True)
             if isinstance(target, torch.Tensor):
                 target = target.cuda(args.local_rank, non_blocking=True)
         

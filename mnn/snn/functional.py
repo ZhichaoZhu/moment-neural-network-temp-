@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 import torch
 import numpy as np
-import analysis
 
 from torch import Tensor
 from .. import utils
 from . import base, mnn2snn
-from .. import mnn_core
+from .. import mnn_core, analysis
 
 class MnnSnnValidate:
     def __init__(self, args, running_time=20, dt=1e-2, num_trials=100, monitor_size=None, 
-                pregenerate=False, resume_best=True, train=False, init_vol=None, alias='', input_type='gaussian', train_funcs=None, unsqueeze_input=0, align_batch_size=True, **kwargs) -> None:
+                pregenerate=False, resume_best=True, train=False, init_vol=None, alias='', input_type='gaussian', train_funcs=None, unsqueeze_input=None, align_batch_size=False, **kwargs) -> None:
         
         self.running_time = running_time
         self.train = train

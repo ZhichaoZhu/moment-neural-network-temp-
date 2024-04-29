@@ -250,5 +250,59 @@ class SampleBasedEarthMoverLoss(torch.nn.Module):
         else:
             loss = self.loss_func(self, output, target)
         return loss
+    
+    
+class FidelityLoss(torch.nn.Module):
+    def __init__(self, alpha=1., decoding_time=1.,reduction='mean', use_full=False, fidelity_weight=None,**kwargs) -> None:
+        super().__init__()
+        assert decoding_time > 0
+        self.alpha = alpha
+        self.reduction = reduction
+        self.decoding_time = decoding_time
+        self.use_full = use_full
+        self.fidelity_weight = fidelity_weight
+        self.ce = torch.nn.CrossEntropyLoss(reduction=reduction, **kwargs)
+    
+    def fidelity_entropy(self, u, c, idx1, idx2, batch_idx, eps=1e-6):
+        mean = (u[batch_idx, idx2] - u[batch_idx, idx1]) * self.decoding_time # <= 0
+        var = c[batch_idx, idx1, idx1] + c[batch_idx, idx2, idx2] - c[batch_idx, idx1, idx2] - c[batch_idx, idx2, idx1]
+        p = 0.5 * torch.erfc(mean / torch.sqrt(2 * var)) - eps # >= 0.5, <= 1
+        q = 1 - p
+        entropy = p * torch.log(p) + q * torch.log(q)
+        return entropy
+    
+    def forward(self, x: Tensor, target: Tensor) -> Tensor:
+        u, cov = x
+        batch, num_class = u.size()
+        assert num_class >= 2
+        loss = self.ce(u, target)
+        
+        if self.alpha > 0:
+            second_loss = 0
+            pred = torch.max(u, dim=-1)[1]
+            sign = torch.where(pred == target, -1, 1)
+            batch_idx = torch.arange(batch, device=u.device)
+            if self.use_full and num_class > 2:
+                _, indices = torch.sort(u, dim=-1, descending=True)
+                x = indices[:, 0]
+                for i in range(1, num_class):
+                    if self.fidelity_weight is None:
+                        weight = 0.8 if i == 1 else 0.2 / (num_class - 2)
+                    else:
+                        weight = self.fidelity_weight[i-1]
+                    second_loss = second_loss + self.fidelity_entropy(u, cov, x, indices[:, i], batch_idx) * weight
+                
+            else:
+                _, indices = torch.topk(u, 2, dim=-1)
+                second_loss = self.fidelity_entropy(u, cov, indices[:, 0], indices[:, 1], batch_idx)
+            
+            second_loss = sign * second_loss
+            if self.reduction == 'mean':
+                second_loss = torch.mean(second_loss)
+            else:
+                second_loss = torch.sum(second_loss)
+            return loss + self.alpha * second_loss
+        else:
+            return loss
 
 
